@@ -1,6 +1,12 @@
 import tensorflow as tf
 import numpy as np
+import sys
 
+def flexiSession():
+	config = tf.ConfigProto()
+	config.allow_soft_placement = True
+	config.gpu_options.allow_growth = True
+	return tf.Session(config = config)
 
 def getWeightAndBias(weights_shape, bias_shape, collection_name, non_zero_bias=True):
 	"""
@@ -132,7 +138,7 @@ def BatchNorm(inputs, is_training, decay = 0.9, epsilon=1e-3, isEnabled=True):
 		with tf.control_dependencies([train_mean, train_var]):
 			return tf.nn.batch_normalization(inputs,
 				batch_mean, batch_var, beta, scale, epsilon)
-			
+
 	def Eval(inputs, pop_mean, pop_var, scale, beta):
 		return tf.nn.batch_normalization(inputs, pop_mean, pop_var, beta, scale, epsilon)
 
@@ -183,3 +189,58 @@ def dice_multiclass(output, target, loss_type='sorensen', axis=[0,1,2], smooth=1
 	##Attention: Return dice/jaccard score of all the classes in the batch if axis=0
 	# dice = tf.reduce_mean(dice, axis=0)
 	return dice
+
+def Adam(lr):
+	return tf.train.AdamOptimizer(learning_rate = lr)
+
+def progress(curr_idx, max_idx, time_step,repeat_elem = "_"):
+	max_equals = 55
+	step_ms = int(time_step*1000)
+	num_equals = int(curr_idx*max_equals/float(max_idx))
+	len_reverse =len('Step:%d ms| %d/%d ['%(step_ms, curr_idx, max_idx)) + num_equals
+	sys.stdout.write("Step:%d ms|%d/%d [%s]" %(step_ms, curr_idx, max_idx, " " * max_equals,))
+	sys.stdout.flush()
+	sys.stdout.write("\b" * (max_equals+1))
+	sys.stdout.write(repeat_elem * num_equals)
+	sys.stdout.write("\b"*len_reverse)
+	sys.stdout.flush()
+	if curr_idx == max_idx:
+		print('\n')
+
+
+def SpatialWeightedCrossEntropyLogits(logits, targets, weight_map, name='spatial_wx_entropy'):
+	cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels = targets,logits = logits)
+	weighted_cross_entropy = tf.multiply(cross_entropy, weight_map)
+	mean_weighted_cross_entropy = tf.reduce_mean(weighted_cross_entropy, name=name)
+	return mean_weighted_cross_entropy
+
+def SpatialCrossEntropyLogits(logits,targets, name='spatial_cross_entropy'):
+	cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels = targets,logits = logits)
+	return tf.reduce_mean(cross_entropy, name=name)
+
+def DiceCriteria2Cls(logits, targets, chief_class, smooth = 1.0, name = 'dice_score'):
+	last_dim_idx = logits.get_shape().ndims - 1
+	num_class = tf.shape(logits)[last_dim_idx]
+	predictions = tf.one_hot(tf.argmax(logits,last_dim_idx),num_class)
+	preds_unrolled = tf.reshape(predictions,[-1,num_class])[:,chief_class]
+	targets_unrolled = tf.reshape(targets,[-1,num_class])[:,chief_class]
+	intersection = tf.reduce_sum(preds_unrolled*targets_unrolled)
+	ret_val = (2.0*intersection)/(tf.reduce_sum(preds_unrolled)
+	 + tf.reduce_sum(targets_unrolled) + smooth)
+	ret_val = tf.identity(ret_val,name = 'dice_score')
+	return ret_val
+
+class ScalarMetricStream(object):
+	def __init__(self,op, filter_nan = False):
+		self.op = op
+		count = tf.constant(1.0)
+		self.sum = tf.Variable([0.0,0], name = op.name[:-2] + '_sum', trainable = False)
+		self.avg = tf.Variable(0.0, name = op.name[:-2] + '_avg', trainable = False)
+
+		if filter_nan == True:
+			op_is_nan = tf.is_nan(self.op)
+			count = tf.cond(op_is_nan, lambda : tf.constant(0.0), lambda : tf.constant(1.0))
+			self.op = tf.cond(op_is_nan, lambda : tf.constant(0.0),lambda : tf.identity(self.op))
+		self.accumulate = tf.assign_add(self.sum,[self.op,count])
+		self.reset = tf.assign(self.sum,[0.0,0.0])
+		self.stats = tf.assign(self.avg,self.sum[0]/(0.001 + self.sum[1]))

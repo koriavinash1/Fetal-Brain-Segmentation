@@ -4,29 +4,27 @@ import os, sys, shutil
 import tensorflow as tf
 
 # sys.path.insert(0,'../helpers/')
-# from train_utils import *
+from train_utils import *
 # from layers import *
 
 class UNET(object):
 	def __init__(self, 
-				inputs, 
-				targets, 
-				weight_maps,
-				batch_class_weights,
-				num_class,  
-				n_pool = 3, 
-				n_feat_first_layer = [32], 
-				chief_class = 1,
-				weight_decay = 5e-6, 
-				metrics_list = ['dice_loss', 'dice_score'],
-				metric_to_optimize = 'dice_loss',
-				optimizer = Adam(1e-4),
-				gpu_ids =[1,2]):
+		inputs, 
+		targets, 
+		weight_maps,
+		num_class,  
+		n_pool = 3, 
+		n_feat_first_layer = [32], 
+		chief_class = 1,
+		weight_decay = 5e-6, 
+		metrics_list = ['dice_loss', 'dice_score'],
+		metric_to_optimize = 'dice_loss',
+		optimizer = Adam(1e-4),
+		gpu_ids =[1,2]):
 
 		self.inputs = inputs
 		self.targets = targets
 		self.weight_maps = weight_maps
-		self.batch_class_weights = batch_class_weights
 		self.n_pool = n_pool
 		self.n_feat_first_layer = n_feat_first_layer
 		self.chief_class = chief_class
@@ -137,6 +135,7 @@ class UNET(object):
 		#####################
 		with tf.variable_scope('logits'):
 			self.logits[idx] = Conv2D(l, [1,1,l.get_shape()[-1].value,self.num_classes], collection_name = 'logits_layer', padding='SAME')
+			print self.logits[idx]
 
 		with tf.variable_scope('logits'):
 			self.posteriors[idx] = Softmax(self.logits[idx])	
@@ -149,10 +148,7 @@ class UNET(object):
 	def calDiceLoss(self, gpu_id_idx, equal_weight=False):
 		# #### Uncomment to enable dice loss
 		dice_distance = tf.subtract(1.0, dice_multiclass(self.posteriors[gpu_id_idx], self.labels_splits[gpu_id_idx]))
-		if equal_weight:
-			class_weights = tf.constant([1.0]*self.num_classes, dtype=tf.float32)	
-		else:
-			class_weights = self.batch_class_weights
+		class_weights = tf.constant([1.0]*self.num_classes, dtype=tf.float32)	
 		dice_loss = tf.divide(tf.reduce_sum(class_weights* dice_distance), tf.reduce_sum(class_weights))
 		return dice_loss			
 
@@ -169,17 +165,8 @@ class UNET(object):
 					metric_obj = ScalarMetricStream(X_loss)
 
 					tf.summary.scalar('per-step',metric_obj.op,collections = ['per_step'])
-					tf.summary.scalar('epoch-avg',metric_obj.avg,collections = ['per_epoch'])					
+					tf.summary.scalar('epoch-avg',metric_obj.avg,collections = ['per_epoch'])	
 
-			elif metric_name == 'dice_loss':
-				metric_implemented = True
-				with tf.variable_scope(metric_name):
-					self.inference_ops[gpu_id_idx][metric_name] = dice_loss = self.calDiceLoss(gpu_id_idx)
-					metric_obj = ScalarMetricStream(dice_loss)
-					tf.summary.scalar('per-step',metric_obj.op,collections = ['per_step'])
-					tf.summary.scalar('epoch-avg',metric_obj.avg,collections = ['per_epoch'])
-
-					
 			elif metric_name == 'plain_dice_loss':
 				metric_implemented = True
 				with tf.variable_scope(metric_name):
@@ -194,6 +181,32 @@ class UNET(object):
 					self.inference_ops[gpu_id_idx][metric_name] = dice_score = \
 						DiceCriteria2Cls(self.logits[gpu_id_idx],self.labels_splits[gpu_id_idx],chief_class = self.chief_class)
 					metric_obj = ScalarMetricStream(dice_score)
+					tf.summary.scalar('per-step',metric_obj.op,collections = ['per_step'])
+					tf.summary.scalar('epoch-avg',metric_obj.avg,collections = ['per_epoch'])
+
+			elif metric_name == 'dice_score_class_0':
+				metric_implemented = True
+				with tf.variable_scope(metric_name):
+					self.inference_ops[gpu_id_idx][metric_name] = dice_score = \
+						DiceCriteria2Cls(self.logits[gpu_id_idx],self.labels_splits[gpu_id_idx], chief_class=0)
+					metric_obj = ScalarMetricStream(dice_score)
+					tf.summary.scalar('per-step',metric_obj.op,collections = ['per_step'])
+					tf.summary.scalar('epoch-avg',metric_obj.avg,collections = ['per_epoch'])
+
+			elif metric_name == 'dice_score_class_1':
+				metric_implemented = True
+				with tf.variable_scope(metric_name):
+					self.inference_ops[gpu_id_idx][metric_name] = dice_score = \
+						DiceCriteria2Cls(self.logits[gpu_id_idx],self.labels_splits[gpu_id_idx], chief_class=1)
+					metric_obj = ScalarMetricStream(dice_score)
+					tf.summary.scalar('per-step',metric_obj.op,collections = ['per_step'])
+					tf.summary.scalar('epoch-avg',metric_obj.avg,collections = ['per_epoch'])				
+
+			elif metric_name == 'dice_loss':
+				metric_implemented = True
+				with tf.variable_scope(metric_name):
+					self.inference_ops[gpu_id_idx][metric_name] = dice_loss = self.calDiceLoss(gpu_id_idx)
+					metric_obj = ScalarMetricStream(dice_loss)
 					tf.summary.scalar('per-step',metric_obj.op,collections = ['per_step'])
 					tf.summary.scalar('epoch-avg',metric_obj.avg,collections = ['per_epoch'])
 

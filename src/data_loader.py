@@ -10,7 +10,8 @@ import weakref
 import threading
 import random
 import matplotlib.pyplot as plt
-
+from config import *
+conf = conf()
 def imshow(*args,**kwargs):
 	""" Handy function to show multiple plots in on row, possibly with different cmaps and titles
 	Usage: 
@@ -117,24 +118,28 @@ class ITERATOR(object):
 		random.shuffle(self.train_fls)
 		random.shuffle(self.val_fls)
 
-	def getPatchSize(self, image, label, weight_map, target_size = (64, 64)):
+		self.train_steps = len(self.train_fls)//self.batch_size
+		self.valid_steps = len(self.val_fls)//self.batch_size
+
+	def getPatchSize(self, image, label, weight_map, target_size = conf.patch_size):
 		shape = image.shape
 		x = np.random.randint(0, shape[1] - target_size[0])
 		y = np.random.randint(0, shape[2] - target_size[1])
 		image_patch = image[:,x:x+target_size[0]:, y:y+target_size[1]:,]
-		label_patch = label[:,x:x+target_size[0]:, y:y+target_size[1]:,]
-		weight_map_patch = weight_map[:,x:x+target_size[0]:, y:y+target_size[1]:,] 
+		label_patch = label[:,x:x+target_size[0]:, y:y+target_size[1]]
+		weight_map_patch = weight_map[:,x:x+target_size[0]:, y:y+target_size[1]] 
 		# print "###########################################"
 		# print image_patch.shape, label_patch.shape
 		return image_patch, label_patch, weight_map_patch
 
 	def popFilePath(self):
+
 		if self.mode == 'train':
 			if len(self.train_fls) > 0:
 				return self.train_fls.pop()
 			else:
 				return None
-		elif self.mode == 'val':
+		elif self.mode == 'valid':
 			if len(self.val_fls) > 0:
 				return self.val_fls.pop()
 			else:
@@ -194,7 +199,7 @@ class ITERATOR(object):
 
 if __name__ == '__main__':
 	# Path to data folder
-	data_path = "./train_test_split.csv"
+	data_path = "../train_test_split.csv"
 	batch_size = 10
 	# Set patch extraction parameters
 	size0 = (64, 64)
@@ -211,7 +216,7 @@ if __name__ == '__main__':
 	for i in range(10000):
 		input_batch, target_batch, wmap_batch = data_iterator.getNextBatch()
 		if type(input_batch) is np.ndarray:
-			imshow(input_batch[0,:,:,0], target_batch[0,:,:,1], wmap_batch[0,:,:,0])
+			imshow(input_batch[0,:,:,0], target_batch[0,:,:], wmap_batch[0,:,:])
 			# if input_batch.shape[0] == 0:
 			# 	print input_batch.shape
 			# 	import pdb; pdb.set_trace();
