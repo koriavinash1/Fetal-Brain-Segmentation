@@ -1,0 +1,8 @@
+numpy
+pandas
+tensorflow
+argparse
+matplotlib
+h5py
+jupyter 
+SimpleITK
