@@ -37,88 +37,6 @@ def load_nii(img_file, folder_path):
     """
     nimg = nib.load(os.path.join(folder_path, img_file))
     return nimg.get_data(), nimg.affine, nimg.header
-
-
-# https://programtalk.com/vs2/?source=python/4202/VNet/VNet.py
-def computeQualityMeasures(lP, lT, class_label):
-    # Get a SimpleITK Image from a numpy array. 
-    # If isVector is True, then a 3D array will be treaded 
-    # as a 2D vector image, otherwise it will be treaded as a 3D image
-
-	quality=OrderedDict()
-	labelPred=sitk.GetImageFromArray(lP, isVector=False)
-	labelTrue=sitk.GetImageFromArray(lT, isVector=False)
-
-	dicecomputer=sitk.LabelOverlapMeasuresImageFilter()
-	dicecomputer.Execute(labelTrue==class_label,labelPred==class_label)
-	quality["dice"]=dicecomputer.GetDiceCoefficient()
-	quality["jaccard"]=dicecomputer.GetJaccardCoefficient()
-	#    quality["dice"]=dicecomputer.GetMeanOverlap()
-	# quality["dice"]=dicecomputer.GetVolumeSimilarity() 
-	# quality["dice"]=dicecomputer.GetUnionOverlap()
-	# quality["dice"]=dicecomputer.GetFalseNegativeError() 
-	#    quality["dice"]=dicecomputer.GetFalsePositiveError () 
-	# Check if both the images have non-zero pixel count?
-	# Else it will throw error. Just set 0 distance if pixel count =0
-	quality["avgHausdorff"]=0
-	quality["Hausdorff"]=0
-	# Disable Hausdorff: Takes long time to compute 
-	# # READ:
-	# # https://itk.org/Doxygen/html/classitk_1_1DirectedHausdorffDistanceImageFilter.html
-	# # https://itk.org/SimpleITKDoxygen/html/classitk_1_1simple_1_1HausdorffDistanceImageFilter.html#a0bc838ff0d5624132abdbe089eb54705
-	try:		
-		if (np.count_nonzero(labelTrue) and np.count_nonzero(labelPred)):
-			hausdorffcomputer=sitk.HausdorffDistanceImageFilter()
-			hausdorffcomputer.Execute(labelTrue==class_label,labelPred==class_label)
-			quality["avgHausdorff"]=hausdorffcomputer.GetAverageHausdorffDistance()
-			quality["Hausdorff"]=hausdorffcomputer.GetHausdorffDistance()
-	except Exception,e:
-		print str(e)
-	return quality
- 
-
-def hist_match(source, template):
-    """
-    Adjust the pixel values of a grayscale image such that its histogram
-    matches that of a target image
- 
-    Arguments:
-    -----------
-        source: np.ndarray
-            Image to transform; the histogram is computed over the flattened
-            array
-        template: np.ndarray
-            Template image; can have different dimensions to source
-    Returns:
-    -----------
-        matched: np.ndarray
-            The transformed output image
-    """
- 
-    oldshape = source.shape
-    source = source.ravel()
-    template = template.ravel()
- 
-    # get the set of unique pixel values and their corresponding indices and
-    # counts
-    s_values, bin_idx, s_counts = np.unique(source, return_inverse=True,
-                                            return_counts=True)
-    t_values, t_counts = np.unique(template, return_counts=True)
- 
-    # take the cumsum of the counts and normalize by the number of pixels to
-    # get the empirical cumulative distribution functions for the source and
-    # template images (maps pixel value --> quantile)
-    s_quantiles = np.cumsum(s_counts).astype(np.float64)
-    s_quantiles /= s_quantiles[-1]
-    t_quantiles = np.cumsum(t_counts).astype(np.float64)
-    t_quantiles /= t_quantiles[-1]
- 
-    # interpolate linearly to find the pixel values in the template image
-    # that correspond most closely to the quantiles in the source image
-    #interp_t_values = np.zeros_like(source,dtype=float)
-    interp_t_values = np.interp(s_quantiles, t_quantiles, t_values)
- 
-    return interp_t_values[bin_idx].reshape(oldshape)
  
 def sitk_show(nda, title=None, margin=0.0, dpi=40):
     figsize = (1 + margin) * nda.shape[0] / dpi, (1 + margin) * nda.shape[1] / dpi
@@ -211,10 +129,3 @@ def get_patient_data(sequence_path, gt_path):
 	patient_dict['Affine']           = corres_affine
 	return patient_dict
 
-
-if __name__ == '__main__':
-	pred_path = '/home/mahendrakhened/Python_Projects/PhD_IIT_M/2017/LV_2011/models/ResidualDenseNet/predictions20171022_232049/DET0045301'
-	seg_path  = '/home/mahendrakhened/Python_Projects/PhD_IIT_M/2017/LV_2011/processed_dataset/dataset/test_set/DET0045301'
-	pred_files_path_list =  glob.glob(pred_path + "/*_SA*_ph*.png")
-	seg_files_path_list = glob.glob(seg_path + "/*_SA*_ph*.png")
-	calcSegmentationMetrics(pred_files_path_list, seg_files_path_list, extension='.png', result_path = './')
