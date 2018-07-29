@@ -62,13 +62,14 @@ if __name__ == "__main__":
 
 	for i in xrange(len(sequence_path)):
 		print("\n-----------------------------------------------------------------------")
-		# save_dir = os.path.dirname(sequence_path[i][0])
 		save_dir = 'path/to/save/prediction/'
+
 		if not os.path.exists(save_dir):
 			os.makedirs(save_dir)
+
 		print("Working on Patient Number", str(i), save_dir)
 		print("-----------------------------------------------------------------------\n")
-		# TODO: Put 2nd Argument of the function as gt_path[i] when dice needs to be calc..
+
 		dice = trainer.LoadandPredict(sequence_path[i], None,
 								preProcessList = ['normalize'],
 								postProcessList = ['glcc'],
