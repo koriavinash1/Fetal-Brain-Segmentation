@@ -48,15 +48,22 @@ Run Generate_Procesed_Data notebook for generating pre-processed data
 ## Folder structure
 
 > ./src consists all source codes
+
+
 > > config -> all initial configurations
+
 > > data_loader -> multithread data loader
+
 > > estimator -> model estimator class
+
 > > network -> network architecture definition
+
 > > runner -> main function
 
+
+``` python runner.py``` for training or testing the model 
 
 <hr>
 If any comments or issues, pull requests/issues are Welcomed....
 
 Thankyou
-``` python runner.py``` for training or testing the model 
