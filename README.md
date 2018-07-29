@@ -64,6 +64,13 @@ Run Generate_Procesed_Data notebook for generating pre-processed data
 ``` python runner.py``` for training or testing the model 
 
 <hr>
+
 If any comments or issues, pull requests/issues are Welcomed....
 
 Thankyou
+
+
+### Contact 
+
+* Avinash Kori (avinashgkori@smail.iitm.ac.in)
+
