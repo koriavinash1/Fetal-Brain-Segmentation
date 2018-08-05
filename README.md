@@ -13,6 +13,7 @@ This repository contains the implementation of 2D UNet architecture for fetal br
 
 ![data](./images/data.png)
 
+First figure shows raw MR image, second hand annotated groundtruth image and last shows weight map for spatial weighted cross entropy loss  
 <hr>
 
 ## Results
