@@ -61,7 +61,7 @@ Run Generate_Procesed_Data notebook for generating pre-processed data
 > > runner -> main function
 
 
-``` python runner.py``` for training or testing the model 
+``` python runner.py``` for training  and ```python predictor.py``` for testing the model 
 
 <hr>
 
